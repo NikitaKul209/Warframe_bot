@@ -1,3 +1,5 @@
+import time
+import logging
 import requests
 import telebot
 from telebot import types
@@ -296,32 +298,14 @@ def get_text_messages(message):
         for i in range(len(data)):
             bot.send_message(message.from_user.id, data[i], reply_markup=markup, parse_mode="Markdown")
 
-        # @bot.message_handler(content_types=['text'])
-        # def item_name(message):
-        #     text = message.text
-        #     print(text)
-        #     bot.register_next_step_handler(message.text, get_item)
-
-
-
-
-    # if message.text == "Найти":
-    #     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    #     btn1 = types.KeyboardButton("Назад")
-    #     markup.add(btn1)
-    #     print(message.text)
-    #     data = get_item(message.text)
-    #     bot.send_message(message.from_user.id, data, reply_markup=markup, parse_mode="Markdown")
-
 
 if __name__ == '__main__':
-    try:
-        bot.infinity_polling()
-        # get_rivens()
-        # get_events()
-        # get_item()
-        # get_mods("Болевая точка")
-    except:
-        pass
+    while 1:
+        try:
+            bot.infinity_polling(non_stop = True)
+        except Exception as e:
+            logging.error(e)
+            time.sleep(15)
+
 
 
