@@ -302,7 +302,7 @@ def get_text_messages(message):
 if __name__ == '__main__':
     while 1:
         try:
-            bot.infinity_polling(non_stop = True)
+            bot.infinity_polling()
         except Exception as e:
             logging.error(e)
             time.sleep(15)
