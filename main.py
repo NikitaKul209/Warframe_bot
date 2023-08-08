@@ -406,9 +406,10 @@ if __name__ == '__main__':
             schedule_thread = Thread(target=run_schedule)
             schedule_thread.start()
             bot.infinity_polling()
-        except Exception as e:
-            logging.error(e)
-            time.sleep(15)
+        except:
+            pass
+            # logging.error(e)
+            time.sleep(5)
 
 
 
