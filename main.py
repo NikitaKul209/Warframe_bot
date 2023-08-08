@@ -364,8 +364,7 @@ def schedule_notification(chat_id, minutes):
 def send_notification(chat_id):
     if chat_id in subscribers:
         data = get_dat("Cтальной путь")
-        for i in range(len(data)):
-            bot.send_message(chat_id, data[i], parse_mode="Markdown")
+        bot.send_message(chat_id, data, parse_mode="Markdown")
 
 def run_schedule():
     while True:
