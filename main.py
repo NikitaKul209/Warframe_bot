@@ -1,4 +1,3 @@
-import time
 import logging
 import requests
 import telebot
@@ -9,17 +8,7 @@ import pytz
 import schedule
 import time
 from threading import Thread
-import googletrans
-from googletrans import Translator
-from deep_translator import (GoogleTranslator,
-                             PonsTranslator,
-                             LingueeTranslator,
-                             MyMemoryTranslator,
-                             YandexTranslator,
-                             DeeplTranslator,
-                             QcriTranslator,
-                             single_detection,
-                             batch_detection)
+
 bot = telebot.TeleBot('6451388653:AAFL6iG9PqR8-nbLSvDEhMqU5p51IC1XQPQ')
 steel_path_missions= []
 common_missions = []
@@ -98,7 +87,6 @@ def get_item(message):
         get_text_messages(message)
         return
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    # next_item = types.KeyboardButton("Искать следующий предмет")
     btn1 = types.KeyboardButton("Назад")
     markup.add(btn1)
     url = f"https://api.warframestat.us/items/{name}"
@@ -109,16 +97,7 @@ def get_item(message):
     items = print_data(data)
     bot.send_message(msg.from_user.id, items, reply_markup=markup )
     bot.register_next_step_handler(message, get_item)
-    # bot.register_next_step_handler(message, process_search_choice)
-
     return items
-
-# def process_search_choice(message):
-#     if message.text == "Искать следующий предмет":
-#         bot.send_message(message.chat.id, "Введите название следующего предмета для поиска:")
-#         bot.register_next_step_handler(message, get_item)
-#     elif message.text == "Назад":
-#         get_text_messages(message)
 
 
 def get_rivens():
@@ -155,7 +134,6 @@ def get_arbitration():
     remaining_minutes, _ = divmod(remainder, 60)
     remaining_time = (f"*До конца осталось:*\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
     arbitration = (f"*{data['type']}*\n{data['node']}\n{data['enemy']}\n{remaining_time}")
-    print(arbitration)
     return arbitration
 
 
@@ -220,32 +198,30 @@ def get_dat(mode):
     response.headers.get("Content-Type")
     data = response.json()
     mission = []
-    steel_path_missions = []
-    common_missions = []
+    steel_missions = ""
+    common_missions = ""
     for item in data:
         mission.append((item))
     len_mission = len(mission)
-
+    steel_iteration = 0
+    common_iteration = 0
     for i in range(len_mission):
         if mission[i]['isHard'] == True:
-            mission_info = (
-                f"*{mission[i]['missionType']}*\n{mission[i]['tier']}\n{mission[i]['eta']}\n{mission[i]['node']}\n{mission[i]['enemyKey']}")
-            steel_path_missions.append(mission_info)
+            steel_missions += f"*{'-' * 30}\n{mission[i]['missionType']}*\n{mission[i]['tier']}\n{mission[i]['eta']}\n{mission[i]['node']}\n{mission[i]['enemyKey']}\n"
+            steel_iteration += 1
         else:
-            mission_info = (
-                f"*{mission[i]['missionType']}*\n{mission[i]['tier']}\n{mission[i]['eta']}\n{mission[i]['node']}\n{mission[i]['enemyKey']}")
-            common_missions.append(mission_info)
-
+            common_missions += f"*{'-' * 30}\n{mission[i]['missionType']}*\n{mission[i]['tier']}\n{mission[i]['eta']}\n{mission[i]['node']}\n{mission[i]['enemyKey']}\n"
+            common_iteration +=1
     if mode == "Cтальной путь":
-        return  steel_path_missions
+        return  steel_missions
     else:
         return common_missions
-
+f'-'
 @bot.message_handler(commands=['start'])
 def start(message):
 
     btn1 = types.KeyboardButton("Разрывы бездны")
-    btn2 = types.KeyboardButton("Циклы мира")
+    btn2 = types.KeyboardButton("🌑Циклы мира🌞")
     btn3 = types.KeyboardButton("Текущая награда стального пути")
     btn4 = types.KeyboardButton("Товары Баро Китира")
     btn5 = types.KeyboardButton("Найти предмет")
@@ -262,7 +238,7 @@ def start(message):
 @bot.message_handler(content_types=['text'])
 def get_text_messages(message):
 
-    if message.text == "Циклы мира":
+    if message.text == "🌑Циклы мира🌞":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
         btn1 = types.KeyboardButton("Назад")
@@ -283,17 +259,14 @@ def get_text_messages(message):
         btn4 = types.KeyboardButton("Назад")
         markup.add(btn4)
         data = get_dat(message.text)
-        for i in range(len(data)):
-            bot.send_message(message.from_user.id, data[i],reply_markup=markup,parse_mode="Markdown")
+        bot.send_message(message.from_user.id, data,reply_markup=markup,parse_mode="Markdown")
 
     if message.text == "Обычный режим":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         btn4 = types.KeyboardButton("Назад")
         markup.add(btn4)
         data = get_dat(message.text)
-        for i in range(len(data)):
-            bot.send_message(message.from_user.id, data[i],reply_markup=markup,parse_mode="Markdown")
-
+        bot.send_message(message.from_user.id, data,reply_markup=markup,parse_mode="Markdown")
 
     if message.text =="Текущая награда стального пути":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -305,7 +278,7 @@ def get_text_messages(message):
 
     if message.text == "Назад":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True,row_width=2)
-        btn1 = types.KeyboardButton("Циклы мира")
+        btn1 = types.KeyboardButton("🌑Циклы мира🌞")
         btn2 = types.KeyboardButton("Разрывы бездны")
         btn3 = types.KeyboardButton("Текущая награда стального пути")
         btn4 = types.KeyboardButton("Товары Баро Китира")
@@ -398,7 +371,6 @@ def run_schedule():
     while True:
         schedule.run_pending()
         time.sleep(1)
-
 
 if __name__ == '__main__':
     while 1:
