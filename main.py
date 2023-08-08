@@ -405,11 +405,10 @@ if __name__ == '__main__':
         try:
             schedule_thread = Thread(target=run_schedule)
             schedule_thread.start()
-            bot.infinity_polling()
-        except:
-            pass
-            # logging.error(e)
+            bot.infinity_polling(logger_level=logging.ERROR)
+        except Exception:
+            logging.basicConfig(level=logging.ERROR, filename="py_log.log", filemode="w")
             time.sleep(5)
-
+            bot.infinity_polling(logger_level=logging.ERROR)
 
 
