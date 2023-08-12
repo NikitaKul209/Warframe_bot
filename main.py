@@ -9,7 +9,7 @@ import schedule
 import time
 from threading import Thread
 
-bot = telebot.TeleBot('6451388653:AAFL6iG9PqR8-nbLSvDEhMqU5p51IC1XQPQ')
+bot = telebot.TeleBot('6451388653:AAFL6iG9PqR8-nbLSvDEhMqU5p51IC1XQPQ',threaded=False)
 steel_path_missions= []
 common_missions = []
 mission = []
@@ -20,7 +20,7 @@ event_info = []
 subscribers = {}
 notification_schedule={}
 def get_events():
-    event_info = []
+    event_info = ""
     events = []
     url = "https://api.warframestat.us/pc/events"
     params = {'language': 'ru', }
@@ -38,7 +38,7 @@ def get_events():
         remaining_hours, remainder = divmod(time_left.seconds, 3600)
         remaining_minutes, _ = divmod(remainder, 60)
         remaining_time = (f"*До конца ивента осталось*:\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
-        event_info.append((f"\n*{events[i]['description']}*\n*Локация: *{events[i]['node']}\n*Награда: *{events[i]['rewards'][0]['asString']}\n{remaining_time}\n"))
+        event_info+=((f"{'-'*70}\n*{events[i]['description']}*\n*Локация: *{events[i]['node']}\n*Награда: *{events[i]['rewards'][0]['asString']}\n{remaining_time}\n"))
     return event_info
 
 
@@ -49,14 +49,15 @@ def get_mods(name):
     response = requests.get(url,params=params)
     response.headers.get("Content-Type")
     data = response.json()
-    print(data)
+
 
 
 
 def print_data(data, indent=0):
     output = ""  # Переменная для сохранения вывода
     # Выводим 'name', 'description' и 'type' сначала
-    print(data)
+
+
     if 'name' in data:
         output += "Name: " + data['name'] + "\n"
     if 'description' in data:
@@ -112,8 +113,16 @@ def get_voidTrader():
     response = requests.get(url)
     response.headers.get("Content-Type")
     data = response.json()
+    items = ''
+
     if data['active'] == True:
-        voidTrader = (f"Локация: *{data['location']}\n*{data['inventory']}")
+        for item_data in data['inventory']:
+            item_name = item_data['item']
+            ducats_value = item_data['ducats']
+            credits_value = item_data['credits']
+            items += f"*{'-'*50}\nПредмет:* {item_name}\n*Дукаты*: {ducats_value}\n*Кредиты*: {credits_value}\n"
+
+        voidTrader = (f"*Локация:* {data['location']}\n\n{items}")
     else:
         voidTrader = (f"Баро Китир прибудет через: *{data['startString']}*\nЛокация: *{data['location']}*")
     return voidTrader
@@ -138,10 +147,10 @@ def get_arbitration():
 
 
 def get_worldstate_data():
-    cycle =[]
-    cycle.append(get_vallisCycle())
-    cycle.append(get_cetusCycle())
-    cycle.append(get_cambionCycle())
+    cycle =''
+    cycle +=get_vallisCycle()
+    cycle +=get_cambionCycle()
+    cycle += get_cetusCycle()
     return cycle
 
 def get_vallisCycle():
@@ -153,7 +162,7 @@ def get_vallisCycle():
         data['state'] = "Холод"
     else:
         data['state'] = "Тепло"
-    vallis_cycle = (f"Долина сфер: *{data['state']}*\nОсталось: *{data['timeLeft']}*")
+    vallis_cycle = (f"{'-'*50}\n*Долина сфер:* {data['state']}\n*Осталось:* {data['timeLeft']}\n")
     return vallis_cycle
 
 def get_cetusCycle():
@@ -165,7 +174,7 @@ def get_cetusCycle():
         data['state'] = "Ночь"
     else:
         data['state'] = "День"
-    cetus_cycle = ( f"Цетус: *{data['state']}*\nОсталось: *{data['timeLeft']}*")
+    cetus_cycle = ( f"{'-'*50}\n*Цетус:* {data['state']}*\nОсталось: *{data['timeLeft']}\n")
 
     return cetus_cycle
 
@@ -179,7 +188,7 @@ def get_cambionCycle():
         data['state'] = "Воум"
     else:
         data['state'] = "Фэз"
-    cambion_cycle = (f"Камбионский дрейф: *{data['state']}*\nОсталось: *{data['timeLeft']}*")
+    cambion_cycle = (f"{'-'*50}\n*Камбионский дрейф:* {data['state']}\n*Осталось:* {data['timeLeft']}\n")
 
     return cambion_cycle
 
@@ -221,7 +230,7 @@ f'-'
 def start(message):
 
     btn1 = types.KeyboardButton("Разрывы бездны")
-    btn2 = types.KeyboardButton("🌑Циклы мира🌞")
+    btn2 = types.KeyboardButton("🌑 Циклы мира 🌞")
     btn3 = types.KeyboardButton("Текущая награда стального пути")
     btn4 = types.KeyboardButton("Товары Баро Китира")
     btn5 = types.KeyboardButton("Найти предмет")
@@ -238,14 +247,13 @@ def start(message):
 @bot.message_handler(content_types=['text'])
 def get_text_messages(message):
 
-    if message.text == "🌑Циклы мира🌞":
+    if message.text == "🌑 Циклы мира 🌞":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
         btn1 = types.KeyboardButton("Назад")
         markup.add(btn1)
         data = get_worldstate_data()
-        for i in range(len(data)):
-            bot.send_message(message.from_user.id,data[i] , reply_markup=markup,parse_mode="Markdown")
+        bot.send_message(message.from_user.id,data , reply_markup=markup,parse_mode="Markdown")
 
     if message.text =="Разрывы бездны":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -278,7 +286,7 @@ def get_text_messages(message):
 
     if message.text == "Назад":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True,row_width=2)
-        btn1 = types.KeyboardButton("🌑Циклы мира🌞")
+        btn1 = types.KeyboardButton("🌑 Циклы мира 🌞")
         btn2 = types.KeyboardButton("Разрывы бездны")
         btn3 = types.KeyboardButton("Текущая награда стального пути")
         btn4 = types.KeyboardButton("Товары Баро Китира")
@@ -311,8 +319,7 @@ def get_text_messages(message):
         btn1 = types.KeyboardButton("Назад")
         markup.add(btn1)
         data = get_events()
-        for i in range(len(data)):
-            bot.send_message(message.from_user.id, data[i], reply_markup=markup, parse_mode="Markdown")
+        bot.send_message(message.from_user.id, data, reply_markup=markup, parse_mode="Markdown")
 
     if message.text == "Арбитраж":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -376,10 +383,10 @@ if __name__ == '__main__':
         try:
             schedule_thread = Thread(target=run_schedule)
             schedule_thread.start()
-            bot.infinity_polling(logger_level=logging.ERROR)
+            bot.infinity_polling()
         except Exception:
             logging.basicConfig(level=logging.ERROR, filename="py_log.log", filemode="w")
             time.sleep(5)
-            bot.infinity_polling(logger_level=logging.ERROR)
+            
 
 
