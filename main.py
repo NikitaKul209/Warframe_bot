@@ -1,7 +1,4 @@
 import logging
-import os
-import pickle
-
 import requests
 import telebot
 from telebot import types
@@ -11,27 +8,8 @@ import pytz
 import schedule
 import time
 from threading import Thread
-import json
-
-
-
-
 
 bot = telebot.TeleBot('6451388653:AAFL6iG9PqR8-nbLSvDEhMqU5p51IC1XQPQ',threaded=False)
-
-
-# if os.path.isfile('subscribers_test.json'):
-#     with open("subscribers_test.json", "r") as file:
-#         subscribers = json.load(file)
-#         print(subscribers)
-# else:
-#     with open("subscribers_test.json", "w") as file:
-#         subscribers = {}
-#         json.dump(subscribers, file)
-
-
-
-
 steel_path_missions= []
 common_missions = []
 mission = []
@@ -41,7 +19,6 @@ events = []
 event_info = []
 subscribers = {}
 notification_schedule={}
-
 def get_events():
     event_info = ""
     events = []
@@ -364,7 +341,6 @@ def get_text_messages(message):
         markup.add(btn1)
         bot.send_message(message.chat.id, "Вы отписались от уведомлений.", reply_markup=markup)
         if message.chat.id in subscribers:
-            schedule.clear(tag=message.chat.id)
             del subscribers[message.chat.id]
             del notification_schedule[message.chat.id]
 
@@ -380,7 +356,6 @@ def set_notification_interval(message):
             bot.register_next_step_handler(message, set_notification_interval)
             return
         subscribers[message.chat.id] = True
-
         notification_schedule[chat_id] = minutes
         bot.send_message(chat_id, f"Интервал для уведомлений успешно установлен на {minutes} минут.")
         schedule.clear(tag=chat_id)
@@ -394,10 +369,9 @@ def schedule_notification(chat_id, minutes):
     schedule.every(minutes).minutes.do(send_notification, chat_id).tag(chat_id)
 
 def send_notification(chat_id):
-    # if chat_id in subscribers:
+    if chat_id in subscribers:
         data = get_dat("Cтальной путь")
-        notification_text = "*Текущие разрывы бездны стального пути!*\n"
-        bot.send_message(chat_id,notification_text+data, parse_mode="Markdown")
+        bot.send_message(chat_id, data, parse_mode="Markdown")
 
 def run_schedule():
     while True:
@@ -413,6 +387,6 @@ if __name__ == '__main__':
         except Exception:
             logging.basicConfig(level=logging.ERROR, filename="py_log.log", filemode="w")
             time.sleep(5)
-
+            
 
 
