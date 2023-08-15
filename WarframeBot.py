@@ -32,10 +32,10 @@ class WarframeBot:
             with open("subscribers.json", "r") as file:
                 self.subscribers = json.load(file)
                 self.start_all_schedule_notification()
-                print(f'Загружен файл: {self.subscribers}')
+                # print(f'Загружен файл: {self.subscribers}')
         else:
             with open("subscribers.json", "w") as file:
-                print("Создан новый файл с подписчиками")
+                # print("Создан новый файл с подписчиками")
                 self.subscribers = {}
                 json.dump(self.subscribers, file)
 
@@ -75,28 +75,75 @@ class WarframeBot:
     def print_data(self,data, indent=0):
         output = ""
 
+        translate= {
+            'Rifle': 'Винтовка',
+            'Shotgun':'Дробовик',
+            'Pistol':'Пистолет',
+            'puncture': 'Пронзание',
+            'impact':'Удар',
+            'slash':'Разрез',
+            'Radiation':'Радиация',
+            'Electricity':'Электричество',
+            'Blast':'Взрыв',
+            'crit_chance': 'Шанс крита',
+            'crit_mult':'Множитель крит урона',
+            'status_chance': 'Шанс статуса',
+            'Attacks:':f'<strong>{"_"*40}</strong>',
+            'Damage':'Урон',
+            'Falloff':'Уменьшение урона с расстоянием',
+            'Start':'Начальное значение',
+            'End':'Конечное значение',
+            'Reduction':'Снижение за метр',
+            'Incarnon Mode AoE':'Инкарнон режим с уроном по площади',
+            'Incarnon Mode':f'<strong>{"_"*40}\nИнкарнон режим</strong>',
+            'Normal Attack':'Обычная атака',
+            'Shot_type':'Тип выстрела',
+            'Hit-Scan':'Мговенное попадание',
+            'Mid-Flight Detonation':'',
+            'Projectile':'Снаряд',
+            'Fully Spooled':'Режим: Полностью автоматический',
+            'Shot_Speed':'Скорость полёта снаряда',
+            'Speed':'Скорострельность',
+            'Viral':'Вирус',
+            'Melee':'Ближний бой',
+            'Throw':'Режим: метательное',
+
+
+
+        }
+
+
+
         if 'name' in data:
-            output += "Name: " + data['name'] + "\n"
+            output += f"<strong>{data['name']}</strong>\n\n"
         if 'description' in data:
-            output += "Description: " + data['description'] + "\n"
+            output += "<strong>Описание:</strong> " + data['description'] + "\n"
         if 'type' in data:
-            output += "Type: " + data['type'] + "\n"
+            output += "Тип: " + data['type'] + "\n"
 
         if isinstance(data, dict):
             for key, value in data.items():
                 if key in ['name', 'description', 'type']:
                     continue  # Пропускаем вывод 'name', 'description' и 'type', так как они уже выведены ранее
                 if isinstance(value, (dict, list)):
-                    output += " " * indent + key.capitalize() + ":\n"
+                    output += f'{" " * indent}{key.capitalize()}:\n'
                     output += self.print_data(value, indent + 2)  # Добавляем результат рекурсивного вызова в переменную output
                 else:
-                    output += " " * indent + key.capitalize() + ": " + str(value) + "\n"
+                    translate_item = translate.get(str(value), str(value))
+                    output += f'{" " * indent}{key.capitalize()}: {translate_item}\n'
         elif isinstance(data, list):
             for item in data:
                 if isinstance(item, dict):
                     output += self.print_data(item, indent)  # Добавляем результат рекурсивного вызова в переменную output
+        output = self.translate_text_with_case(output,translate)
         return output  # Возвращаем результат вместо вывода на экран
 
+    def translate_text_with_case(self,text, translations):
+        translated_text = text
+        for original, translation in translations.items():
+            pattern = re.compile(re.escape(original), re.IGNORECASE)
+            translated_text = pattern.sub(translation, translated_text)
+        return translated_text
 
     def get_item(self,message):
         msg = message
@@ -108,25 +155,20 @@ class WarframeBot:
         btn1 = types.KeyboardButton("Назад")
         markup.add(btn1)
         url = f"https://api.warframestat.us/items/{name}"
-        params = {'only':["name,description,attacks,type,abilities"],'language':'ru',}
-        # params = {'language':'ru',}
+        params = {'only':["name,description,attacks,type,abilities,"],'language':'ru',}
         response = requests.get(url,params=params)
         response.headers.get("Content-Type")
         data = response.json()
-
-        print(data)
-
         if 'error' in data:
             items = "Предмет не найден или возникла ошибка"
-
+            parse_mode = "HTML"
         elif data['type'] == 'Warframe':
-
             items = self.get_warframe_description(data)
-            print(items)
+            parse_mode = "Markdown"
         else:
             items = self.print_data(data)
-
-        self.bot.send_message(msg.from_user.id, items, reply_markup=markup,parse_mode="Markdown" )
+            parse_mode = "HTML"
+        self.bot.send_message(msg.from_user.id, items, reply_markup=markup,parse_mode=parse_mode )
         self.bot.register_next_step_handler(message, self.get_item)
         return items
 
@@ -156,23 +198,28 @@ class WarframeBot:
         response = requests.get(url)
         response.headers.get("Content-Type")
         data = response.json()
-        end_date = (data['expiry'])
-        end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-        current_time = datetime.now(pytz.timezone("Europe/Moscow"))
-        time_left = end_time - current_time
-        remaining_days = time_left.days
-        remaining_hours, remainder = divmod(time_left.seconds, 3600)
-        remaining_minutes, _ = divmod(remainder, 60)
-        remaining_time = (f"*До конца осталось:*\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
-        arbitration = (f"*{data['type']}*\n{data['node']}\n{data['enemy']}\n{remaining_time}")
+        if 'expiry' in data:
+            end_date = (data['expiry'])
+            end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+            current_time = datetime.now(pytz.timezone("Europe/Moscow"))
+            time_left = end_time - current_time
+            remaining_days = time_left.days
+            remaining_hours, remainder = divmod(time_left.seconds, 3600)
+            remaining_minutes, _ = divmod(remainder, 60)
+            remaining_time = (f"*До конца осталось:*\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
+            arbitration = (f"*{data['type']}*\n{data['node']}\n{data['enemy']}\n{remaining_time}")
+        else:
+            arbitration = f"Данные обновляются"
         return arbitration
 
 
     def get_worldstate_data(self):
         cycle =''
-        cycle +=self.get_vallisCycle()
-        cycle +=self.get_cambionCycle()
         cycle += self.get_cetusCycle()
+        cycle += self.get_earthCycle()
+        cycle += self.get_vallisCycle()
+        cycle += self.get_cambionCycle()
+
         return cycle
 
     def get_vallisCycle(self):
@@ -181,11 +228,22 @@ class WarframeBot:
         response.headers.get("Content-Type")
         data = response.json()
         if data['state'] == "cold":
-            data['state'] = "Холод"
+            vallis_cycle = (f"{'-' * 50}\n*Долина сфер:* Холод\n*Тепло через:* {data['timeLeft']}\n")
         else:
-            data['state'] = "Тепло"
-        vallis_cycle = (f"{'-'*50}\n*Долина сфер:* {data['state']}\n*Осталось:* {data['timeLeft']}\n")
+            vallis_cycle = (f"{'-'* 50}\n*Долина сфер:* Тепло\n*Холод через:* {data['timeLeft']}\n")
         return vallis_cycle
+
+
+    def get_earthCycle(self):
+        url ="https://api.warframestat.us/pc/earthCycle/"
+        response = requests.get(url)
+        response.headers.get("Content-Type")
+        data = response.json()
+        if data['state'] =='night':
+            earth_cycle = f"{'-'*50}\n*Земля*: Ночь\n*День через:* {data['timeLeft']}\n"
+        else:
+            earth_cycle = f"{'-'*50}\n*Земля*: День\n*Ночь через:* {data['timeLeft']}\n"
+        return earth_cycle
 
     def get_cetusCycle(self):
         url = "https://api.warframestat.us/pc/ru/cetusCycle"
@@ -193,11 +251,9 @@ class WarframeBot:
         response.headers.get("Content-Type")
         data = response.json()
         if data['state'] == "night":
-            data['state'] = "Ночь"
+            cetus_cycle = (f"{'-' * 50}\n*Цетус:* Ночь\n*День через: *{data['timeLeft']}\n")
         else:
-            data['state'] = "День"
-        cetus_cycle = ( f"{'-'*50}\n*Цетус:* {data['state']}*\nОсталось: *{data['timeLeft']}\n")
-
+            cetus_cycle = ( f"{'-'*50}\n*Цетус:* День\n*Ночь через: *{data['timeLeft']}\n")
         return cetus_cycle
 
 
@@ -207,12 +263,20 @@ class WarframeBot:
         response.headers.get("Content-Type")
         data = response.json()
         if data['state'] == "vome":
-            data['state'] = "Воум"
+            cambion_cycle = (f"{'-' * 50}\n*Камбионский дрейф:* Воум\n*Фэз через:* {data['timeLeft']}\n")
         else:
-            data['state'] = "Фэз"
-        cambion_cycle = (f"{'-'*50}\n*Камбионский дрейф:* {data['state']}\n*Осталось:* {data['timeLeft']}\n")
-
+            cambion_cycle = (f"{'-' * 50}\n*Камбионский дрейф:* Фэз\n*Воум через:* {data['timeLeft']}\n")
         return cambion_cycle
+
+    def get_news(self):
+        url ="https://api.warframestat.us/pc/ru/news"
+        response = requests.get(url)
+        response.headers.get("Content-Type")
+        data = response.json()
+        game_news=''
+        for news in data:
+            game_news+=f'<strong>{news["message"]}:</strong>\n{news["link"]}\n<strong>{"_"*40}</strong>\n'
+        return game_news
 
     def get_steel_path__reward(self):
         url = "https://api.warframestat.us/pc/ru/steelPath"
@@ -257,23 +321,21 @@ class WarframeBot:
         btn5 = types.KeyboardButton("Найти предмет")
         btn6 = types.KeyboardButton("Текущие ивенты")
         btn7 = types.KeyboardButton("Арбитраж")
+        btn9 = types.KeyboardButton("Новости")
         if str(message.chat.id) in self.subscribers:
             btn8 = types.KeyboardButton("Отписаться от уведомлений")
         else:
             btn8 = types.KeyboardButton("Подписаться на уведомления")
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True,row_width=2)
-        markup.add(btn1,btn2,btn3,btn4,btn5,btn6,btn7,btn8)
+        markup.add(btn1,btn2,btn3,btn4,btn5,btn6,btn7,btn8, btn9)
         self.bot.send_message(message.from_user.id, "Привет,я бот-помощник для игры Warframe", reply_markup=markup)
 
 
     def get_text_messages(self,message):
 
         if message.text == "🌑 Циклы мира 🌞":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            btn1 = types.KeyboardButton("Назад")
-            markup.add(btn1)
             data = self.get_worldstate_data()
-            self.bot.send_message(message.from_user.id,data , reply_markup=markup,parse_mode="Markdown")
+            self.bot.send_message(message.from_user.id,data,parse_mode="Markdown")
 
         if message.text =="Разрывы бездны":
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -297,11 +359,8 @@ class WarframeBot:
             self.bot.send_message(message.from_user.id, data,reply_markup=markup,parse_mode="Markdown")
 
         if message.text =="Текущая награда стального пути":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            btn1 = types.KeyboardButton("Назад")
-            markup.add(btn1)
             data = self.get_steel_path__reward()
-            self.bot.send_message(message.from_user.id, data, reply_markup=markup,parse_mode="Markdown")
+            self.bot.send_message(message.from_user.id, data,parse_mode="Markdown")
 
 
         if message.text == "Назад":
@@ -313,11 +372,12 @@ class WarframeBot:
             btn5 = types.KeyboardButton("Найти предмет")
             btn6 = types.KeyboardButton("Текущие ивенты")
             btn7 = types.KeyboardButton("Арбитраж")
+            btn9 = types.KeyboardButton("Новости")
             if str(message.chat.id) in self.subscribers:
                 btn8 = types.KeyboardButton("Отписаться от уведомлений")
             else:
                 btn8 = types.KeyboardButton("Подписаться на уведомления")
-            markup.add(btn1,btn2, btn3,btn4,btn5,btn6,btn7,btn8)
+            markup.add(btn1,btn2, btn3,btn4,btn5,btn6,btn7,btn8, btn9)
             self.bot.send_message(message.from_user.id, "Выберите режим", reply_markup=markup)
 
         if message.text == "Товары Баро Китира":
@@ -335,18 +395,12 @@ class WarframeBot:
             self.bot.register_next_step_handler(message,self.get_item)
 
         if message.text == "Текущие ивенты":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            btn1 = types.KeyboardButton("Назад")
-            markup.add(btn1)
             data = self.get_events()
-            self.bot.send_message(message.from_user.id, data, reply_markup=markup, parse_mode="Markdown")
+            self.bot.send_message(message.from_user.id, data, parse_mode="Markdown")
 
         if message.text == "Арбитраж":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            btn1 = types.KeyboardButton("Назад")
-            markup.add(btn1)
             data = self.get_arbitration()
-            self.bot.send_message(message.from_user.id, data, reply_markup=markup, parse_mode="Markdown")
+            self.bot.send_message(message.from_user.id, data, parse_mode="Markdown")
 
         if message.text == "Подписаться на уведомления":
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -365,7 +419,12 @@ class WarframeBot:
                 del self.subscribers[str(message.chat.id)]
                 with open("subscribers.json", "w") as file:
                     json.dump(self.subscribers, file)
-                    # print(f'Подписчик удалён: {subscribers}')
+
+
+        if message.text == ("Новости"):
+            data = self.get_news()
+            self.bot.send_message(message.from_user.id, data, parse_mode="HTML",disable_web_page_preview=True)
+
 
     def set_notification_interval(self,message):
         chat_id = message.chat.id
@@ -381,7 +440,7 @@ class WarframeBot:
             self.subscribers[str(message.chat.id)] = True, minutes
             with open("subscribers.json", "w") as file:
                 json.dump(self.subscribers, file)
-            # print(f'Новый подписчик: {subscribers}')
+
 
             self.bot.send_message(chat_id, f"Интервал для уведомлений успешно установлен на {minutes} минут.")
             schedule.clear(tag=chat_id)
