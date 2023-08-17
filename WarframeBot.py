@@ -48,17 +48,17 @@ class WarframeBot:
         response.headers.get("Content-Type")
         data = response.json()
         for event in data:
-            self.events.append(event)
-        for i in range(len(self.events)):
-            end_date = (self.events[i]['expiry'])
-            end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-            current_time = datetime.now(pytz.timezone("Europe/Moscow"))
-            time_left = end_time - current_time
-            remaining_days = time_left.days
-            remaining_hours, remainder = divmod(time_left.seconds, 3600)
-            remaining_minutes, _ = divmod(remainder, 60)
-            remaining_time = (f"*До конца ивента осталось*:\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
-            event_info+=((f"{'-'*70}\n*{self.events[i]['description']}*\n*Локация: *{self.events[i]['node']}\n*Награда: *{self.events[i]['rewards'][0]['asString']}\n{remaining_time}\n"))
+            if event['active'] == True:
+                end_date = event['expiry']
+                end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+                current_time = datetime.now(pytz.timezone("Europe/Moscow"))
+                time_left = end_time - current_time
+                remaining_days = time_left.days
+                remaining_hours, remainder = divmod(time_left.seconds, 3600)
+                remaining_minutes, _ = divmod(remainder, 60)
+                remaining_time = (f"*До конца ивента осталось*:\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
+                event_info += ((
+                    f"{'-' * 70}\n*{event['description']}*\n*Локация: *{event['node']}\n*Награда: *{event['rewards'][0]['asString']}\n{remaining_time}\n"))
         return event_info
 
     def get_warframe_description(self, data):
@@ -107,11 +107,7 @@ class WarframeBot:
             'Viral':'Вирус',
             'Melee':'Ближний бой',
             'Throw':'Режим: метательное',
-
-
-
         }
-
 
 
         if 'name' in data:
@@ -381,11 +377,8 @@ class WarframeBot:
             self.bot.send_message(message.from_user.id, "Выберите режим", reply_markup=markup)
 
         if message.text == "Товары Баро Китира":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            btn1 = types.KeyboardButton("Назад")
-            markup.add(btn1)
             data = self.get_voidTrader()
-            self.bot.send_message(message.from_user.id, data, reply_markup=markup,parse_mode="Markdown")
+            self.bot.send_message(message.from_user.id, data,parse_mode="Markdown")
 
         if message.text == "Найти предмет":
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -406,7 +399,8 @@ class WarframeBot:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
             btn1 = types.KeyboardButton("Назад")
             markup.add(btn1)
-            self.bot.send_message(message.from_user.id,'Вы подписываетесь на уведомления о разрывах бездны стального пути.\n\nВведите интервал уведомлений в минутах' , reply_markup=markup,parse_mode="Markdown")
+            self.bot.send_message(message.from_user.id,'Вы подписываетесь на уведомления о разрывах бездны стального пути.\n\n'
+                                                       'Введите интервал уведомлений в минутах' , reply_markup=markup,parse_mode="Markdown")
             self.bot.register_next_step_handler(message, self.set_notification_interval)
 
         if message.text == "Отписаться от уведомлений":
@@ -440,8 +434,6 @@ class WarframeBot:
             self.subscribers[str(message.chat.id)] = True, minutes
             with open("subscribers.json", "w") as file:
                 json.dump(self.subscribers, file)
-
-
             self.bot.send_message(chat_id, f"Интервал для уведомлений успешно установлен на {minutes} минут.")
             schedule.clear(tag=chat_id)
             self.schedule_notification(chat_id, minutes)
