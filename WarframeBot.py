@@ -189,9 +189,7 @@ class WarframeBot:
         response = requests.get(url)
         response.headers.get("Content-Type")
         data = response.json()
-        items = ''
         items_list = []
-
 
         if data['active'] == True:
                 items = (f"*Локация:* {data['location']}\n")
@@ -205,9 +203,8 @@ class WarframeBot:
                         items_list.append(items)
                         items =''
                 items_list.append(items)
-                print(items_list)
         else:
-            voidTrader = (f"Баро Китир прибудет через: *{data['startString']}*\nЛокация: *{data['location']}*")
+            items_list.append((f"Баро Китир прибудет через: *{data['startString']}*\nЛокация: *{data['location']}*"))
 
         return items_list
 
