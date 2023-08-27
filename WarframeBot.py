@@ -47,18 +47,33 @@ class WarframeBot:
         response = requests.get(url,params=params)
         response.headers.get("Content-Type")
         data = response.json()
+
         for event in data:
+            print(event)
             if event['active'] == True:
-                end_date = event['expiry']
-                end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-                current_time = datetime.now(pytz.timezone("Europe/Moscow"))
-                time_left = end_time - current_time
-                remaining_days = time_left.days
-                remaining_hours, remainder = divmod(time_left.seconds, 3600)
-                remaining_minutes, _ = divmod(remainder, 60)
-                remaining_time = (f"*До конца ивента осталось*:\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
-                event_info += ((
-                    f"{'-' * 70}\n*{event['description']}*\n*Локация: *{event['node']}\n*Награда: *{event['rewards'][0]['asString']}\n{remaining_time}\n"))
+                if len(event['rewards']) == 0:
+
+                    end_date = event['expiry']
+                    end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+                    current_time = datetime.now(pytz.timezone("Europe/Moscow"))
+                    time_left = end_time - current_time
+                    remaining_days = time_left.days
+                    remaining_hours, remainder = divmod(time_left.seconds, 3600)
+                    remaining_minutes, _ = divmod(remainder, 60)
+                    remaining_time = (f"*До конца ивента осталось*:\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
+                    event_info += ((
+                        f"{'-' * 70}\n*{event['description']}*\n*Локация: *{event['node']}\n{remaining_time}\n"))
+                else:
+                    end_date = event['expiry']
+                    end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+                    current_time = datetime.now(pytz.timezone("Europe/Moscow"))
+                    time_left = end_time - current_time
+                    remaining_days = time_left.days
+                    remaining_hours, remainder = divmod(time_left.seconds, 3600)
+                    remaining_minutes, _ = divmod(remainder, 60)
+                    remaining_time = (f"*До конца ивента осталось*:\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
+                    event_info += ((
+                        f"{'-' * 70}\n*{event['description']}*\n*Локация: *{event['node']}\n*Награда: *{event['rewards'][0]['asString']}\n{remaining_time}\n"))
         return event_info
 
     def get_warframe_description(self, data):
@@ -175,18 +190,26 @@ class WarframeBot:
         response.headers.get("Content-Type")
         data = response.json()
         items = ''
+        items_list = []
+
 
         if data['active'] == True:
-            for item_data in data['inventory']:
-                item_name = item_data['item']
-                ducats_value = item_data['ducats']
-                credits_value = item_data['credits']
-                items += f"*{'-'*50}\nПредмет:* {item_name}\n*Дукаты*: {ducats_value}\n*Кредиты*: {credits_value}\n"
+                items = (f"*Локация:* {data['location']}\n")
+                for item_data in data['inventory']:
+                    item_name = item_data['item']
+                    ducats_value = item_data['ducats']
+                    credits_value = item_data['credits']
+                    items += f"*{'-'*50}\nПредмет:* {item_name}\n*Дукаты*: {ducats_value}\n*Кредиты*: {credits_value}\n"
 
-            voidTrader = (f"*Локация:* {data['location']}\n\n{items}")
+                    if len(items)> 3800:
+                        items_list.append(items)
+                        items =''
+                items_list.append(items)
+                print(items_list)
         else:
             voidTrader = (f"Баро Китир прибудет через: *{data['startString']}*\nЛокация: *{data['location']}*")
-        return voidTrader
+
+        return items_list
 
 
     def get_arbitration(self):
@@ -378,7 +401,8 @@ class WarframeBot:
 
         if message.text == "Товары Баро Китира":
             data = self.get_voidTrader()
-            self.bot.send_message(message.from_user.id, data,parse_mode="Markdown")
+            for i in range (len(data)):
+                self.bot.send_message(message.from_user.id, data[i],parse_mode="Markdown")
 
         if message.text == "Найти предмет":
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
