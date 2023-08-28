@@ -32,10 +32,10 @@ class WarframeBot:
             with open("subscribers.json", "r") as file:
                 self.subscribers = json.load(file)
                 self.start_all_schedule_notification()
-                # print(f'Загружен файл: {self.subscribers}')
+                print(f'Загружен файл: {self.subscribers}')
         else:
             with open("subscribers.json", "w") as file:
-                # print("Создан новый файл с подписчиками")
+                print("Создан новый файл с подписчиками")
                 self.subscribers = {}
                 json.dump(self.subscribers, file)
 
@@ -49,7 +49,6 @@ class WarframeBot:
         data = response.json()
 
         for event in data:
-            print(event)
             if event['active'] == True:
                 if len(event['rewards']) == 0:
 
@@ -291,7 +290,7 @@ class WarframeBot:
         data = response.json()
         game_news=''
         for news in data:
-            game_news+=f'<strong>{news["message"]}:</strong>\n{news["link"]}\n<strong>{"_"*40}</strong>\n'
+            game_news+=f'{news["eta"]}\n[{news["message"]}]({news["link"]})\n*{"-"*40}*\n'
         return game_news
 
     def get_steel_path__reward(self):
@@ -438,7 +437,7 @@ class WarframeBot:
 
         if message.text == ("Новости"):
             data = self.get_news()
-            self.bot.send_message(message.from_user.id, data, parse_mode="HTML",disable_web_page_preview=True)
+            self.bot.send_message(message.from_user.id, data, parse_mode="Markdown",disable_web_page_preview=True)
 
 
     def set_notification_interval(self,message):
