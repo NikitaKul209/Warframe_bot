@@ -39,6 +39,18 @@ class WarframeBot:
                 self.subscribers = {}
                 json.dump(self.subscribers, file)
 
+    def get_nighthwave(self):
+        nightwave_missions = ""
+        url = "https://api.warframestat.us/pc/nightwave"
+        params = {'language': 'ru', }
+        response = requests.get(url,params=params)
+        response.headers.get("Content-Type")
+        data = response.json()
+        for missions in (data["activeChallenges"]):
+            nightwave_missions += f'*Задание:* {missions["title"]}\n*Описание:* {missions["desc"]}\n*Репутация:* {missions["reputation"]}\n*{"-"*50}*\n'
+        return nightwave_missions
+
+
     def get_events(self):
         event_info = ""
         self.events = []
@@ -336,13 +348,15 @@ class WarframeBot:
         btn5 = types.KeyboardButton("Найти предмет")
         btn6 = types.KeyboardButton("Текущие ивенты")
         btn7 = types.KeyboardButton("Арбитраж")
+        btn8 = types.KeyboardButton("Задания ночной волны")
         btn9 = types.KeyboardButton("Новости")
+
         if str(message.chat.id) in self.subscribers:
-            btn8 = types.KeyboardButton("Отписаться от уведомлений")
+            btn10 = types.KeyboardButton("Отписаться от уведомлений")
         else:
-            btn8 = types.KeyboardButton("Подписаться на уведомления")
+            btn10 = types.KeyboardButton("Подписаться на уведомления")
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True,row_width=2)
-        markup.add(btn1,btn2,btn3,btn4,btn5,btn6,btn7,btn8, btn9)
+        markup.add(btn1,btn2,btn3,btn4,btn5,btn6,btn7,btn8, btn9,btn10)
         self.bot.send_message(message.from_user.id, "Привет,я бот-помощник для игры Warframe", reply_markup=markup)
 
 
@@ -387,12 +401,14 @@ class WarframeBot:
             btn5 = types.KeyboardButton("Найти предмет")
             btn6 = types.KeyboardButton("Текущие ивенты")
             btn7 = types.KeyboardButton("Арбитраж")
+            btn8 = types.KeyboardButton("Задания ночной волны")
             btn9 = types.KeyboardButton("Новости")
+
             if str(message.chat.id) in self.subscribers:
-                btn8 = types.KeyboardButton("Отписаться от уведомлений")
+                btn10 = types.KeyboardButton("Отписаться от уведомлений")
             else:
-                btn8 = types.KeyboardButton("Подписаться на уведомления")
-            markup.add(btn1,btn2, btn3,btn4,btn5,btn6,btn7,btn8, btn9)
+                btn10 = types.KeyboardButton("Подписаться на уведомления")
+            markup.add(btn1,btn2, btn3,btn4,btn5,btn6,btn7,btn8, btn9,btn10)
             self.bot.send_message(message.from_user.id, "Выберите режим", reply_markup=markup)
 
         if message.text == "Товары Баро Китира":
@@ -439,6 +455,11 @@ class WarframeBot:
             data = self.get_news()
             self.bot.send_message(message.from_user.id, data, parse_mode="Markdown",disable_web_page_preview=True)
 
+
+
+        if message.text == ("Задания ночной волны"):
+            data = self.get_nighthwave()
+            self.bot.send_message(message.from_user.id, data, parse_mode="Markdown", disable_web_page_preview=True)
 
     def set_notification_interval(self,message):
         chat_id = message.chat.id
