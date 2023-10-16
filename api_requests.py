@@ -78,7 +78,7 @@ def get_events():
 
 def get_arbitration():
     url = "https://api.warframestat.us/pc/ru/arbitration"
-    response = requests.get(url)
+    response = requests.get(url,verify=False)
     response.headers.get("Content-Type")
     data = response.json()
     if 'expiry' in data:
@@ -94,3 +94,42 @@ def get_arbitration():
     else:
         arbitration = f"Данные обновляются"
     return arbitration
+
+
+def get_fissures(mode,gamemode):
+    print(mode,gamemode)
+    url = "https://api.warframestat.us//pc/ru/fissures"
+    response = requests.get(url,verify=False)
+    response.headers.get("Content-Type")
+    data = response.json()
+    mission = []
+    missions = ""
+    for item in data:
+        mission.append((item))
+    len_mission = len(mission)
+
+    match gamemode:
+        case "Обычный режим","Обычный режим":
+            for i in range(len_mission):
+                if mission[i]['isHard'] == False & mission[i]['isStorm'] == False:
+                    missions += f"*{'-' * 30}\n{mission[i]['missionType']}*\n{mission[i]['tier']}\n{mission[i]['eta']}\n{mission[i]['node']}\n{mission[i]['enemyKey']}\n"
+                    return missions
+
+        case "Обычный режим","Рейлджек":
+            for i in range(len_mission):
+                if mission[i]['isHard'] == False & mission[i]['isStorm'] == True:
+                    missions += f"*{'-' * 30}\n{mission[i]['missionType']}*\n{mission[i]['tier']}\n{mission[i]['eta']}\n{mission[i]['node']}\n{mission[i]['enemyKey']}\n"
+                    return missions
+
+        case "Стальной путь","Обычный режим":
+            for i in range(len_mission):
+                if mission[i]['isHard'] == True & mission[i]['isStorm']==False:
+                    missions += f"*{'-' * 30}\n{mission[i]['missionType']}*\n{mission[i]['tier']}\n{mission[i]['eta']}\n{mission[i]['node']}\n{mission[i]['enemyKey']}\n"
+                    return missions
+
+        case "Стальной путь","Рейлджек":
+            for i in range(len_mission):
+                if mission[i]['isHard'] == True & mission[i]['isStorm'] == True:
+                    missions += f"*{'-' * 30}\n{mission[i]['missionType']}*\n{mission[i]['tier']}\n{mission[i]['eta']}\n{mission[i]['node']}\n{mission[i]['enemyKey']}\n"
+                    return missions
+

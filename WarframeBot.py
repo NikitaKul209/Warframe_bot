@@ -327,6 +327,7 @@ class WarframeBot:
         len_mission = len(mission)
         steel_iteration = 0
         common_iteration = 0
+
         for i in range(len_mission):
             if mission[i]['isHard'] == True:
                 steel_missions += f"*{'-' * 30}\n{mission[i]['missionType']}*\n{mission[i]['tier']}\n{mission[i]['eta']}\n{mission[i]['node']}\n{mission[i]['enemyKey']}\n"
