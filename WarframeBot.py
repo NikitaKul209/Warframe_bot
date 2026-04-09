@@ -9,12 +9,13 @@ import pytz
 import schedule
 import time
 from threading import Thread
+from telebot import apihelper
 import json
 
 class WarframeBot:
 
     def __init__(self):
-
+        # apihelper.proxy = {'https':'socks5://127.0.0.1:40000'}
         with open('token.txt') as file:
             token = file.read()
         self.bot = telebot.TeleBot(token, threaded=False)
@@ -39,6 +40,24 @@ class WarframeBot:
                 self.subscribers = {}
                 json.dump(self.subscribers, file)
 
+
+    def get_price_from_wfmarket(self):
+        url = "https://api.warframe.market/v2/orders/item/ris/"
+        params = {'language': 'ru', }
+        response = requests.get(url, params=params)
+
+        online_sell_orders = [i for i in response.json()["data"] if i["type"] == "sell" and i["user"]["status"] == "ingame"]
+        max_price = max(order["platinum"] for order in online_sell_orders)
+        min_price = min(order["platinum"] for order in online_sell_orders)
+        avg_price = sum(order["platinum"] for order in online_sell_orders)/len(online_sell_orders)
+        print(max_price)
+        print(min_price)
+        print(avg_price)
+
+
+
+        return response
+
     def get_nighthwave(self):
         nightwave_missions = ""
         url = "https://api.warframestat.us/pc/nightwave"
@@ -59,32 +78,31 @@ class WarframeBot:
         response = requests.get(url,params=params)
         response.headers.get("Content-Type")
         data = response.json()
-
         for event in data:
-            if event['active'] == True:
-                if len(event['rewards']) == 0:
 
-                    end_date = event['expiry']
-                    end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-                    current_time = datetime.now(pytz.timezone("Europe/Moscow"))
-                    time_left = end_time - current_time
-                    remaining_days = time_left.days
-                    remaining_hours, remainder = divmod(time_left.seconds, 3600)
-                    remaining_minutes, _ = divmod(remainder, 60)
-                    remaining_time = (f"*До конца ивента осталось*:\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
-                    event_info += ((
-                        f"{'-' * 70}\n*{event['description']}*\n*Локация: *{event['node']}\n{remaining_time}\n"))
-                else:
-                    end_date = event['expiry']
-                    end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-                    current_time = datetime.now(pytz.timezone("Europe/Moscow"))
-                    time_left = end_time - current_time
-                    remaining_days = time_left.days
-                    remaining_hours, remainder = divmod(time_left.seconds, 3600)
-                    remaining_minutes, _ = divmod(remainder, 60)
-                    remaining_time = (f"*До конца ивента осталось*:\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
-                    event_info += ((
-                        f"{'-' * 70}\n*{event['description']}*\n*Локация: *{event['node']}\n*Награда: *{event['rewards'][0]['asString']}\n{remaining_time}\n"))
+            if len(event['rewards']) == 0:
+
+                end_date = event['expiry']
+                end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+                current_time = datetime.now(pytz.timezone("Europe/Moscow"))
+                time_left = end_time - current_time
+                remaining_days = time_left.days
+                remaining_hours, remainder = divmod(time_left.seconds, 3600)
+                remaining_minutes, _ = divmod(remainder, 60)
+                remaining_time = (f"*До конца ивента осталось*:\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
+                event_info += ((
+                    f"{'-' * 70}\n*{event['description']}*\n{remaining_time}\n"))
+            else:
+                end_date = event['expiry']
+                end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+                current_time = datetime.now(pytz.timezone("Europe/Moscow"))
+                time_left = end_time - current_time
+                remaining_days = time_left.days
+                remaining_hours, remainder = divmod(time_left.seconds, 3600)
+                remaining_minutes, _ = divmod(remainder, 60)
+                remaining_time = (f"*До конца ивента осталось*:\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
+                event_info += ((
+                    f"{'-' * 70}\n*{event['description']}*\n*Локация: *{event['node']}\n*Награда: *{event['rewards'][0]['items']}\n{remaining_time}\n"))
         return event_info
 
     def get_warframe_description(self, data):
@@ -200,9 +218,10 @@ class WarframeBot:
         response = requests.get(url)
         response.headers.get("Content-Type")
         data = response.json()
-        items_list = []
 
-        if data['active'] == True:
+        time_left = self.make_msk_time(data['activation'])
+        items_list = []
+        if data['inventory'] == True:
                 items = (f"*Локация:* {data['location']}\n")
                 for item_data in data['inventory']:
                     item_name = item_data['item']
@@ -215,30 +234,31 @@ class WarframeBot:
                         items =''
                 items_list.append(items)
         else:
-            items_list.append((f"Баро Китир прибудет через: *{data['startString']}*\nЛокация: *{data['location']}*"))
+            items_list.append((f"Баро Китир прибудет через: *{time_left}*\nЛокация: *{data['location']}*"))
 
         return items_list
 
 
     def get_arbitration(self):
-        url = "https://api.warframestat.us/pc/ru/arbitration"
-        response = requests.get(url)
-        response.headers.get("Content-Type")
-        data = response.json()
-        if 'expiry' in data:
-            end_date = (data['expiry'])
-            end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-            current_time = datetime.now(pytz.timezone("Europe/Moscow"))
-            time_left = end_time - current_time
-            remaining_days = time_left.days
-            remaining_hours, remainder = divmod(time_left.seconds, 3600)
-            remaining_minutes, _ = divmod(remainder, 60)
-            remaining_time = (f"*До конца осталось:*\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
-            arbitration = (f"*{data['type']}*\n{data['node']}\n{data['enemy']}\n{remaining_time}")
-        else:
-            arbitration = f"Данные обновляются"
-        return arbitration
-
+        # url = "https://api.warframestat.us/pc/ru/arbitration"
+        # response = requests.get(url)
+        # response.headers.get("Content-Type")
+        # data = response.json()
+        # print(data)
+        # if 'expiry' in data:
+        #     end_date = (data['expiry'])
+        #     end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+        #     current_time = datetime.now(pytz.timezone("Europe/Moscow"))
+        #     time_left = end_time - current_time
+        #     remaining_days = time_left.days
+        #     remaining_hours, remainder = divmod(time_left.seconds, 3600)
+        #     remaining_minutes, _ = divmod(remainder, 60)
+        #     remaining_time = (f"*До конца осталось:*\nДней: {remaining_days} | Часов: {remaining_hours} | Минут: {remaining_minutes}")
+        #     arbitration = (f"*{data['type']}*\n{data['node']}\n{data['enemy']}\n{remaining_time}")
+        # else:
+        #     arbitration = f"Данные обновляются"
+        # return arbitration
+        return (f"Эта хуйня, к сожалению, больше не работает(")
 
     def get_worldstate_data(self):
         cycle =''
@@ -254,10 +274,13 @@ class WarframeBot:
         response = requests.get(url)
         response.headers.get("Content-Type")
         data = response.json()
+        timeLeft =  self.make_msk_time(data['expiry'])
+
+
         if data['state'] == "cold":
-            vallis_cycle = (f"{'-' * 50}\n*Долина сфер:* Холод\n*Тепло через:* {data['timeLeft']}\n")
+            vallis_cycle = (f"{'-' * 50}\n*Долина сфер:* Холод\n*Тепло через:* {timeLeft}\n")
         else:
-            vallis_cycle = (f"{'-'* 50}\n*Долина сфер:* Тепло\n*Холод через:* {data['timeLeft']}\n")
+            vallis_cycle = (f"{'-'* 50}\n*Долина сфер:* Тепло\n*Холод через:* {timeLeft}\n")
         return vallis_cycle
 
 
@@ -266,6 +289,9 @@ class WarframeBot:
         response = requests.get(url)
         response.headers.get("Content-Type")
         data = response.json()
+        end_time = datetime.fromisoformat(data['expiry'].replace("Z", "+00:00"))
+        current_time = datetime.now(pytz.timezone("Europe/Moscow"))
+        time_left = end_time - current_time
         if data['state'] =='night':
             earth_cycle = f"{'-'*50}\n*Земля*: Ночь\n*День через:* {data['timeLeft']}\n"
         else:
@@ -277,6 +303,11 @@ class WarframeBot:
         response = requests.get(url)
         response.headers.get("Content-Type")
         data = response.json()
+
+        # end_time = datetime.fromisoformat(data['expiry'].replace("Z", "+00:00"))
+        # current_time = datetime.now(pytz.timezone("Europe/Moscow"))
+        # time_left = end_time - current_time
+        # time_left = self.make_msk_time(data['expiry'])
         if data['state'] == "night":
             cetus_cycle = (f"{'-' * 50}\n*Цетус:* Ночь\n*День через: *{data['timeLeft']}\n")
         else:
@@ -289,6 +320,9 @@ class WarframeBot:
         response = requests.get(url)
         response.headers.get("Content-Type")
         data = response.json()
+        end_time = datetime.fromisoformat(data['expiry'].replace("Z", "+00:00"))
+        current_time = datetime.now(pytz.timezone("Europe/Moscow"))
+        time_left = end_time - current_time
         if data['state'] == "vome":
             cambion_cycle = (f"{'-' * 50}\n*Камбионский дрейф:* Воум\n*Фэз через:* {data['timeLeft']}\n")
         else:
@@ -301,8 +335,9 @@ class WarframeBot:
         response.headers.get("Content-Type")
         data = response.json()
         game_news=''
+
         for news in data:
-            game_news+=f'{news["eta"]}\n[{news["message"]}]({news["link"]})\n*{"-"*40}*\n'
+            game_news+=f'\n[{news["message"]}]({news["link"]})\n*{"-"*40}*\n'
         return game_news
 
     def get_steel_path__reward(self):
@@ -310,7 +345,7 @@ class WarframeBot:
         response = requests.get(url)
         response.headers.get("Content-Type")
         data = response.json()
-        steel_path_reward = (f"*{data['currentReward']['name']}*\n*Стоимость*: {data['currentReward']['cost']} стали\n")
+        steel_path_reward = (f"*Награда: {data['currentReward']['name']}*\n*Стоимость: {data['currentReward']['cost']} стали\n*")
         return steel_path_reward
 
 
@@ -329,11 +364,14 @@ class WarframeBot:
         common_iteration = 0
 
         for i in range(len_mission):
+
             if mission[i]['isHard'] == True:
-                steel_missions += f"*{'-' * 30}\n{mission[i]['missionType']}*\n{mission[i]['tier']}\n{mission[i]['eta']}\n{mission[i]['node']}\n{mission[i]['enemyKey']}\n"
+                end_time = self.make_msk_time(mission[i]['expiry'])
+                steel_missions += f"*{'-' * 30}\n{mission[i]['missionType']}*\n{mission[i]['tier']}\n{end_time}\n{mission[i]['node']}\n{mission[i]['enemyKey']}\n"
                 steel_iteration += 1
             else:
-                common_missions += f"*{'-' * 30}\n{mission[i]['missionType']}*\n{mission[i]['tier']}\n{mission[i]['eta']}\n{mission[i]['node']}\n{mission[i]['enemyKey']}\n"
+                end_time = self.make_msk_time(mission[i]['expiry'])
+                common_missions += f"*{'-' * 30}\n{mission[i]['missionType']}*\n{mission[i]['tier']}\n{end_time}\n{mission[i]['node']}\n{mission[i]['enemyKey']}\n"
                 common_iteration +=1
         if mode == "Cтальной путь":
             return  steel_missions
@@ -344,25 +382,29 @@ class WarframeBot:
     def start(self,message):
         btn1 = types.KeyboardButton("Разрывы бездны")
         btn2 = types.KeyboardButton("🌑 Циклы мира 🌞")
-        btn3 = types.KeyboardButton("Текущая награда стального пути")
+        btn3 = types.KeyboardButton("Текущая награда СП")
         btn4 = types.KeyboardButton("Товары Баро Китира")
         btn5 = types.KeyboardButton("Найти предмет")
         btn6 = types.KeyboardButton("Текущие ивенты")
         btn7 = types.KeyboardButton("Арбитраж")
         btn8 = types.KeyboardButton("Задания ночной волны")
         btn9 = types.KeyboardButton("Новости")
+        btn11 = types.KeyboardButton("Узнать цену на WF Market")
 
         if str(message.chat.id) in self.subscribers:
             btn10 = types.KeyboardButton("Отписаться от уведомлений")
         else:
-            btn10 = types.KeyboardButton("Подписаться на уведомления")
+            btn10 = types.KeyboardButton("Уведомления СП")
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True,row_width=2)
-        markup.add(btn1,btn2,btn3,btn4,btn5,btn6,btn7,btn8, btn9,btn10)
+        markup.add(btn1,btn2,btn3,btn4,btn5,btn6,btn7,btn8, btn9,btn10,btn11)
         self.bot.send_message(message.from_user.id, "Привет,я бот-помощник для игры Warframe", reply_markup=markup)
 
 
     def get_text_messages(self,message):
 
+        if message.text == "Узнать цену на WF Market":
+            data = self.get_price_from_wfmarket()
+            print(data)
         if message.text == "🌑 Циклы мира 🌞":
             data = self.get_worldstate_data()
             self.bot.send_message(message.from_user.id,data,parse_mode="Markdown")
@@ -388,7 +430,7 @@ class WarframeBot:
             data = self.get_dat(message.text)
             self.bot.send_message(message.from_user.id, data,reply_markup=markup,parse_mode="Markdown")
 
-        if message.text =="Текущая награда стального пути":
+        if message.text =="Текущая награда СП":
             data = self.get_steel_path__reward()
             self.bot.send_message(message.from_user.id, data,parse_mode="Markdown")
 
@@ -397,7 +439,7 @@ class WarframeBot:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True,row_width=2)
             btn1 = types.KeyboardButton("🌑 Циклы мира 🌞")
             btn2 = types.KeyboardButton("Разрывы бездны")
-            btn3 = types.KeyboardButton("Текущая награда стального пути")
+            btn3 = types.KeyboardButton("Текущая награда СП")
             btn4 = types.KeyboardButton("Товары Баро Китира")
             btn5 = types.KeyboardButton("Найти предмет")
             btn6 = types.KeyboardButton("Текущие ивенты")
@@ -408,7 +450,7 @@ class WarframeBot:
             if str(message.chat.id) in self.subscribers:
                 btn10 = types.KeyboardButton("Отписаться от уведомлений")
             else:
-                btn10 = types.KeyboardButton("Подписаться на уведомления")
+                btn10 = types.KeyboardButton("Уведомления СП")
             markup.add(btn1,btn2, btn3,btn4,btn5,btn6,btn7,btn8, btn9,btn10)
             self.bot.send_message(message.from_user.id, "Выберите режим", reply_markup=markup)
 
@@ -432,7 +474,7 @@ class WarframeBot:
             data = self.get_arbitration()
             self.bot.send_message(message.from_user.id, data, parse_mode="Markdown")
 
-        if message.text == "Подписаться на уведомления":
+        if message.text == "Уведомления СП":
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
             btn1 = types.KeyboardButton("Назад")
             markup.add(btn1)
@@ -461,6 +503,16 @@ class WarframeBot:
         if message.text == ("Задания ночной волны"):
             data = self.get_nighthwave()
             self.bot.send_message(message.from_user.id, data, parse_mode="Markdown", disable_web_page_preview=True)
+    def make_msk_time(self,end_time):
+        end_time = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
+        current_time = datetime.now(pytz.timezone("Europe/Moscow"))
+        time_left = end_time - current_time
+        remaining_days = time_left.days
+        remaining_hours, remainder = divmod(time_left.seconds, 3600)
+        remaining_minutes, _ = divmod(remainder, 60)
+        remaining_time = (
+            f"{remaining_days}d {remaining_hours}h {remaining_minutes}m")
+        return remaining_time
 
     def set_notification_interval(self,message):
         chat_id = message.chat.id
@@ -512,6 +564,7 @@ if __name__ == '__main__':
             bot = WarframeBot()
             schedule_thread = Thread(target=bot.run_schedule).start()
             bot.bot.infinity_polling()
+
         except Exception:
             time.sleep(5)
 
