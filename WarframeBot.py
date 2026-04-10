@@ -248,10 +248,9 @@ class WarframeBot:
         response = requests.get(url)
         response.headers.get("Content-Type")
         data = response.json()
-
         time_left = self.make_msk_time(data['activation'])
         items_list = []
-        if data['inventory'] == True:
+        if data['inventory']:
                 items = (f"*Локация:* {data['location']}\n")
                 for item_data in data['inventory']:
                     item_name = item_data['item']
@@ -384,6 +383,7 @@ class WarframeBot:
         response = requests.get(url)
         response.headers.get("Content-Type")
         data = response.json()
+        print(data)
         mission = []
         steel_missions = ""
         common_missions = ""
