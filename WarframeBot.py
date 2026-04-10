@@ -11,7 +11,7 @@ import time
 from threading import Thread
 from telebot import apihelper
 import json
-
+import rapidfuzz
 class WarframeBot:
 
     def __init__(self):
@@ -41,22 +41,52 @@ class WarframeBot:
                 json.dump(self.subscribers, file)
 
 
-    def get_price_from_wfmarket(self):
-        url = "https://api.warframe.market/v2/orders/item/ris/"
-        params = {'language': 'ru', }
-        response = requests.get(url, params=params)
+    def find_item(self,ru_item_name):
+        url = "https://api.warframe.market/v2/items"
+        header = {"Language": "ru"}
+        response = (requests.get(url, headers=header)).json()
 
-        online_sell_orders = [i for i in response.json()["data"] if i["type"] == "sell" and i["user"]["status"] == "ingame"]
-        max_price = max(order["platinum"] for order in online_sell_orders)
-        min_price = min(order["platinum"] for order in online_sell_orders)
-        avg_price = sum(order["platinum"] for order in online_sell_orders)/len(online_sell_orders)
-        print(max_price)
-        print(min_price)
-        print(avg_price)
+        all_ru_eng_names = [[item.get("i18n").get("ru").get("name"),item.get("slug")] for item in response["data"]]
+        all_ru_names = [names[0] for names in  all_ru_eng_names]
+
+        matches = rapidfuzz.process.extract(ru_item_name.lower(),all_ru_names,limit=5,scorer=rapidfuzz.fuzz.token_set_ratio)
+
+        best_indexes  = [index[2] for index in matches]
+
+        eng_item_for_searches = [all_ru_eng_names[i][1] for i in best_indexes]
+        ru_item_for_searches = [all_ru_eng_names[i][0] for i in best_indexes]
+
+        header = {"Language": "ru"}
+
+        responses = []
+        for item in eng_item_for_searches:
+            url = f"https://api.warframe.market/v2/orders/item/{item}/"
+            response = requests.get(url, headers=header)
+            responses.append(response.json())
+        return responses,ru_item_for_searches
 
 
+    def get_price_from_wfmarket(self,message):
+        if message.text.lower() == 'назад':
+            self.get_text_messages(message)
+            return
+        url2 = "https://api.warframe.market/v2/items"
+        header = {"Language": "ru"}
 
-        return response
+        items,ru_names =self.find_item(message.text)
+
+        data = ""
+        for item,name in zip(items,ru_names):
+
+            online_sell_orders = [i for i in item["data"] if i["type"] == "sell" and i["user"]["status"] == "ingame"]
+            max_price = max(order["platinum"] for order in online_sell_orders)
+            min_price = min(order["platinum"] for order in online_sell_orders)
+            avg_price = sum(order["platinum"] for order in online_sell_orders)/len(online_sell_orders)
+            data += f"{name}\nСредняя цена: {avg_price} пл.\nМинимальная цена: {min_price} пл.\nМаксимальная цена: {max_price} пл.\n\n"
+
+        self.bot.send_message(message.from_user.id,data,parse_mode="Markdown")
+        self.bot.register_next_step_handler(message, self.get_price_from_wfmarket)
+
 
     def get_nighthwave(self):
         nightwave_missions = ""
@@ -403,8 +433,12 @@ class WarframeBot:
     def get_text_messages(self,message):
 
         if message.text == "Узнать цену на WF Market":
-            data = self.get_price_from_wfmarket()
-            print(data)
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            btn1 = types.KeyboardButton("Назад")
+            markup.add(btn1)
+            self.bot.send_message(message.from_user.id, "Введите название предмета", reply_markup=markup)
+            self.bot.register_next_step_handler(message, self.get_price_from_wfmarket)
+
         if message.text == "🌑 Циклы мира 🌞":
             data = self.get_worldstate_data()
             self.bot.send_message(message.from_user.id,data,parse_mode="Markdown")
@@ -446,12 +480,13 @@ class WarframeBot:
             btn7 = types.KeyboardButton("Арбитраж")
             btn8 = types.KeyboardButton("Задания ночной волны")
             btn9 = types.KeyboardButton("Новости")
+            btn11 = types.KeyboardButton("Узнать цену на WF Market")
 
             if str(message.chat.id) in self.subscribers:
                 btn10 = types.KeyboardButton("Отписаться от уведомлений")
             else:
                 btn10 = types.KeyboardButton("Уведомления СП")
-            markup.add(btn1,btn2, btn3,btn4,btn5,btn6,btn7,btn8, btn9,btn10)
+            markup.add(btn1,btn2, btn3,btn4,btn5,btn6,btn7,btn8, btn9,btn10,btn11)
             self.bot.send_message(message.from_user.id, "Выберите режим", reply_markup=markup)
 
         if message.text == "Товары Баро Китира":
@@ -493,12 +528,9 @@ class WarframeBot:
                 with open("subscribers.json", "w") as file:
                     json.dump(self.subscribers, file)
 
-
         if message.text == ("Новости"):
             data = self.get_news()
             self.bot.send_message(message.from_user.id, data, parse_mode="Markdown",disable_web_page_preview=True)
-
-
 
         if message.text == ("Задания ночной волны"):
             data = self.get_nighthwave()
