@@ -50,6 +50,7 @@ class WarframeBot:
         all_ru_names = [names[0] for names in  all_ru_eng_names]
 
         matches = rapidfuzz.process.extract(ru_item_name.lower(),all_ru_names,limit=5,scorer=rapidfuzz.fuzz.token_set_ratio)
+        print(matches)
 
         best_indexes  = [index[2] for index in matches]
 
@@ -75,15 +76,18 @@ class WarframeBot:
 
         items,ru_names =self.find_item(message.text)
 
-        data = ""
+
+        data = "Возможно, вы имели в виду:\n\n"
         for item,name in zip(items,ru_names):
 
             online_sell_orders = [i for i in item["data"] if i["type"] == "sell" and i["user"]["status"] == "ingame"]
-            max_price = max(order["platinum"] for order in online_sell_orders)
-            min_price = min(order["platinum"] for order in online_sell_orders)
-            avg_price = sum(order["platinum"] for order in online_sell_orders)/len(online_sell_orders)
-            data += f"{name}\nСредняя цена: {avg_price} пл.\nМинимальная цена: {min_price} пл.\nМаксимальная цена: {max_price} пл.\n\n"
-
+            if len(online_sell_orders) == 0:
+                data += f"{name}\nНа данный момент продавцы отсутствуют!\n\n"
+            else:
+                max_price = max(order["platinum"] for order in online_sell_orders)
+                min_price = min(order["platinum"] for order in online_sell_orders)
+                avg_price = sum(order["platinum"] for order in online_sell_orders)/len(online_sell_orders)
+                data += f"{name}\nСредняя цена: {avg_price} пл.\nМинимальная цена: {min_price} пл.\nМаксимальная цена: {max_price} пл.\n\n"
         self.bot.send_message(message.from_user.id,data,parse_mode="Markdown")
         self.bot.register_next_step_handler(message, self.get_price_from_wfmarket)
 
@@ -94,6 +98,8 @@ class WarframeBot:
         params = {'language': 'ru', }
         response = requests.get(url,params=params)
         response.headers.get("Content-Type")
+        if response.status_code != 200:
+            return f"{'-' * 50}\nДанные обновляются\n"
         data = response.json()
         for missions in (data["activeChallenges"]):
             nightwave_missions += f'*Задание:* {missions["title"]}\n*Описание:* {missions["desc"]}\n*Репутация:* {missions["reputation"]}\n*{"-"*50}*\n'
@@ -107,6 +113,9 @@ class WarframeBot:
         params = {'language': 'ru', }
         response = requests.get(url,params=params)
         response.headers.get("Content-Type")
+        if response.status_code != 200:
+            return f"{'-' * 50}\nДанные обновляются\n"
+
         data = response.json()
         for event in data:
 
@@ -228,6 +237,10 @@ class WarframeBot:
         params = {'only':["name,description,attacks,type,abilities,"],'language':'ru',}
         response = requests.get(url,params=params)
         response.headers.get("Content-Type")
+        if response.status_code != 200:
+            self.bot.send_message(msg.from_user.id, f"{'-' * 50}\nДанные обновляются\n", reply_markup=markup)
+            self.bot.register_next_step_handler(message, self.get_item)
+            return
         data = response.json()
         if 'error' in data:
             items = "Предмет не найден или возникла ошибка"
@@ -247,6 +260,8 @@ class WarframeBot:
         url = "https://api.warframestat.us/pc/ru/voidTrader"
         response = requests.get(url)
         response.headers.get("Content-Type")
+        if response.status_code != 200:
+            return f"{'-' * 50}\nДанные обновляются\n"
         data = response.json()
         time_left = self.make_msk_time(data['activation'])
         items_list = []
@@ -302,6 +317,10 @@ class WarframeBot:
         url = "https://api.warframestat.us/pc/ru/vallisCycle"
         response = requests.get(url)
         response.headers.get("Content-Type")
+
+        if response.status_code != 200:
+            return f"{'-' * 50}\n*Долина сфер:*\nДанные обновляются\n"
+
         data = response.json()
         timeLeft =  self.make_msk_time(data['expiry'])
 
@@ -317,6 +336,9 @@ class WarframeBot:
         url ="https://api.warframestat.us/pc/earthCycle/"
         response = requests.get(url)
         response.headers.get("Content-Type")
+        if response.status_code != 200:
+            return f"{'-' * 50}\n*Земля:*\nДанные обновляются\n"
+
         data = response.json()
         end_time = datetime.fromisoformat(data['expiry'].replace("Z", "+00:00"))
         current_time = datetime.now(pytz.timezone("Europe/Moscow"))
@@ -332,11 +354,9 @@ class WarframeBot:
         response = requests.get(url)
         response.headers.get("Content-Type")
         data = response.json()
+        if response.status_code != 200:
+            return f"{'-' * 50}\n*Цетус:*\nДанные обновляются\n"
 
-        # end_time = datetime.fromisoformat(data['expiry'].replace("Z", "+00:00"))
-        # current_time = datetime.now(pytz.timezone("Europe/Moscow"))
-        # time_left = end_time - current_time
-        # time_left = self.make_msk_time(data['expiry'])
         if data['state'] == "night":
             cetus_cycle = (f"{'-' * 50}\n*Цетус:* Ночь\n*День через: *{data['timeLeft']}\n")
         else:
@@ -348,6 +368,9 @@ class WarframeBot:
         url = "https://api.warframestat.us/pc/ru/cambionCycle"
         response = requests.get(url)
         response.headers.get("Content-Type")
+        if response.status_code != 200:
+            return f"{'-' * 50}\n*Камбионский дрейф:*\nДанные обновляются\n"
+
         data = response.json()
         end_time = datetime.fromisoformat(data['expiry'].replace("Z", "+00:00"))
         current_time = datetime.now(pytz.timezone("Europe/Moscow"))
@@ -362,9 +385,11 @@ class WarframeBot:
         url ="https://api.warframestat.us/pc/ru/news"
         response = requests.get(url)
         response.headers.get("Content-Type")
+        print(response.status_code)
+        if response.status_code != 200:
+            return f"{'-' * 50}\nДанные обновляются\n"
         data = response.json()
         game_news=''
-
         for news in data:
             game_news+=f'\n[{news["message"]}]({news["link"]})\n*{"-"*40}*\n'
         return game_news
@@ -373,6 +398,8 @@ class WarframeBot:
         url = "https://api.warframestat.us/pc/ru/steelPath"
         response = requests.get(url)
         response.headers.get("Content-Type")
+        if response.status_code != 200:
+            return f"{'-' * 50}\nДанные обновляются\n"
         data = response.json()
         steel_path_reward = (f"*Награда: {data['currentReward']['name']}*\n*Стоимость: {data['currentReward']['cost']} стали\n*")
         return steel_path_reward
@@ -382,8 +409,9 @@ class WarframeBot:
         url = "https://api.warframestat.us//pc/ru/fissures"
         response = requests.get(url)
         response.headers.get("Content-Type")
+        if response.status_code != 200:
+            return f"{'-' * 50}\nДанные обновляются\n"
         data = response.json()
-        print(data)
         mission = []
         steel_missions = ""
         common_missions = ""
@@ -397,11 +425,11 @@ class WarframeBot:
 
             if mission[i]['isHard'] == True:
                 end_time = self.make_msk_time(mission[i]['expiry'])
-                steel_missions += f"*{'-' * 30}\n{mission[i]['missionType']}*\n{mission[i]['tier']}\n{end_time}\n{mission[i]['node']}\n{mission[i]['enemyKey']}\n"
+                steel_missions += f"{'-' * 30}\n*Тип миссии: * {mission[i]['missionType']}\n*Тир: * {mission[i]['tier']}\n*Осталось времени: * {end_time}\n*Локация: *{mission[i]['node']}\n*Фракция: *{mission[i]['enemyKey']}\n"
                 steel_iteration += 1
             else:
                 end_time = self.make_msk_time(mission[i]['expiry'])
-                common_missions += f"*{'-' * 30}\n{mission[i]['missionType']}*\n{mission[i]['tier']}\n{end_time}\n{mission[i]['node']}\n{mission[i]['enemyKey']}\n"
+                common_missions += f"{'-' * 30}\n*Тип миссии: * {mission[i]['missionType']}\n*Тир: * {mission[i]['tier']}\n*Осталось времени: *{end_time}\n*Локация: *{mission[i]['node']}\n*Фракция: *{mission[i]['enemyKey']}\n"
                 common_iteration +=1
         if mode == "Cтальной путь":
             return  steel_missions
@@ -422,7 +450,7 @@ class WarframeBot:
         btn11 = types.KeyboardButton("Узнать цену на WF Market")
 
         if str(message.chat.id) in self.subscribers:
-            btn10 = types.KeyboardButton("Отписаться от уведомлений")
+            btn10 = types.KeyboardButton("Отписаться от увед.")
         else:
             btn10 = types.KeyboardButton("Уведомления СП")
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True,row_width=2)
@@ -483,7 +511,7 @@ class WarframeBot:
             btn11 = types.KeyboardButton("Узнать цену на WF Market")
 
             if str(message.chat.id) in self.subscribers:
-                btn10 = types.KeyboardButton("Отписаться от уведомлений")
+                btn10 = types.KeyboardButton("Отписаться от увед.")
             else:
                 btn10 = types.KeyboardButton("Уведомления СП")
             markup.add(btn1,btn2, btn3,btn4,btn5,btn6,btn7,btn8, btn9,btn10,btn11)
@@ -491,8 +519,11 @@ class WarframeBot:
 
         if message.text == "Товары Баро Китира":
             data = self.get_voidTrader()
-            for i in range (len(data)):
-                self.bot.send_message(message.from_user.id, data[i],parse_mode="Markdown")
+            if isinstance(data,list):
+                for i in range (len(data)):
+                    self.bot.send_message(message.from_user.id, data[i],parse_mode="Markdown")
+            else:
+                self.bot.send_message(message.from_user.id, data, parse_mode="Markdown")
 
         if message.text == "Найти предмет":
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -517,7 +548,7 @@ class WarframeBot:
                                                        'Введите интервал уведомлений в минутах' , reply_markup=markup,parse_mode="Markdown")
             self.bot.register_next_step_handler(message, self.set_notification_interval)
 
-        if message.text == "Отписаться от уведомлений":
+        if message.text == "Отписаться от увед.":
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
             btn1 = types.KeyboardButton("Назад")
             markup.add(btn1)
@@ -544,6 +575,8 @@ class WarframeBot:
         remaining_minutes, _ = divmod(remainder, 60)
         remaining_time = (
             f"{remaining_days}d {remaining_hours}h {remaining_minutes}m")
+        if remaining_time[0] == "-":
+            return "Завершено!"
         return remaining_time
 
     def set_notification_interval(self,message):
